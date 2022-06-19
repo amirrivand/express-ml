@@ -4,7 +4,8 @@
   "description": "Express Media Library",
   "main": "index.js",
   "scripts": {
-    "test": "exit 0"
+    "test": "exit 0",
+    "deploy": "npm publish"
   },
   "repository": {
     "type": "git",
