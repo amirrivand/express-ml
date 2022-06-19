@@ -2,6 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const {Op} = require("sequelize");
+const bodyParser = require("body-parser");
 
 const pathToModel = path.join(__dirname, "model", "eMediaLibrary.js");
 
@@ -17,16 +18,10 @@ module.exports = async (app, dbModelsPath, middleware) => {
         storage: multer.diskStorage({
             destination: uploadPath,
             filename: (req, file, cb) => {
-                const filename = "eue_" + req.id + "_" + file.filename;
+                const filename = "eue_"+ file.originalname;
                 cb(null, filename);
             },
         }),
-        fileFilter: (req, file, cb) => {
-            if (validTypes.indexOf(file.mimetype) === -1) {
-                return cb("Type not supported", false);
-            }
-            cb(null, true);
-        },
     });
 
     if(!fs.existsSync(uploadPath)) {
@@ -46,6 +41,9 @@ module.exports = async (app, dbModelsPath, middleware) => {
     if(middleware) {
         app.use(PATH_NAME, middleware, (req,res,next) => next());
     }
+
+    app.use(PATH_NAME, bodyParser.json());
+    app.use(PATH_NAME, bodyParser.urlencoded({ extended: false}));
 
     app.get(PATH_NAME, async (req, res, next) => {
         const limit = +req.query.limit || FILES_PER_PAGE;
@@ -70,41 +68,29 @@ module.exports = async (app, dbModelsPath, middleware) => {
     });
 
     app.post(PATH_NAME, engine.any(), async (req, res, next) => {
-        const files = [];
-        if(req.files?.length > 0) {
-            await require.files.forEach(async (file) => {
-                await models.ExpressML.create({
-                    filename: file.filename,
-                    mimetype: file.mimetype,
-                    path: file.path,
-                    destination: file.destination,
-                    size: file.size,
-                }).then((response) => {
-                    files.push(response);
-                }).catch(next);
-            })
+        if(req.files.length === 0) {
+            return res.json(null);
         }
-        if(files.length === 1) {
-            return res.json(files[0]);
+        const mappedFiles = req.files.map(file => ({
+            filename: file.filename,
+            mimetype: file.mimetype,
+            path: file.path,
+            destination: file.destination,
+            size: file.size,
+        }))
+        const response = await models.ExpressML.bulkCreate(mappedFiles);
+        if(response.length === 1) {
+            return res.json(response[0]);
         }
-        res.json(files);
+        res.json(response);
+        
     });
 
     app.delete(PATH_NAME + "/:id", async (req,res, next) => {
         try {
-            const del = await models.ExpressML.destroy({
-                where: {
-                    id: {
-                        [Op.eq]: req.params.id
-                    }
-                }
-            });
-            if(!del) {
-                return res.json({
-                    error: "عملیات حذف با خطا مواجه شد",
-                    severity: "error"
-                })
-            }
+            const file = await models.findByPk(req.params.id);
+            fs.unlinkSync(path.join(uploadPath, file.filename));
+            await file.destroy();
             res.json({
                 message: "فایل انتخاب شده حذف گردید",
                 severity: "success"
