@@ -5,12 +5,13 @@ const {Op} = require("sequelize");
 
 const pathToModel = path.join(__dirname, "model", "eMediaLibrary.js");
 
-module.exports = async (app, appBasePath, dbModelsPath, sequelize, middleware) => {
+module.exports = async (app, dbModelsPath, middleware) => {
     const validTypes = [];
     const PATH_NAME = "/mediaLibrary";
     const FILES_PER_PAGE = 12;
     const DEFAULT_PAGE = 1;
-    const uploadPath = path.resolve(appBasePath, "uploads", "eml");
+    const uploadPath = path.join(process.cwd(), "uploads", "eml");
+    const modelPath = path.join(dbModelsPath, "expressml.js");
     const models = require(path.join(dbModelsPath, "index.js"));
     const engine = multer({
         storage: multer.diskStorage({
@@ -34,9 +35,9 @@ module.exports = async (app, appBasePath, dbModelsPath, sequelize, middleware) =
         });
     }
 
-    if(!fs.existsSync(path.join(dbModelsPath, "expressml.js"))) {
-        fs.copyFileSync(pathToModel, path.join(dbModelsPath, "expressml.js"));
-        await sequelize.sync({
+    if(!fs.existsSync(modelPath)) {
+        fs.copyFileSync(pathToModel, modelPath);
+        await models.sequelize.sync({
             alter: false,
             force: false
         })
