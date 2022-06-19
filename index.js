@@ -1,6 +1,8 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const {Op} = require("sequelize");
+
 const pathToModel = path.join(__dirname, "model", "eMediaLibrary.js");
 
 module.exports = async (app, appBasePath, dbModelsPath, sequelize, middleware) => {
@@ -81,6 +83,33 @@ module.exports = async (app, appBasePath, dbModelsPath, sequelize, middleware) =
                 }).catch(next);
             })
         }
-        return res.json(files);
+        if(files.length === 1) {
+            return res.json(files[0]);
+        }
+        res.json(files);
+    });
+
+    app.delete(PATH_NAME + "/:id", async (req,res, next) => {
+        try {
+            const del = await models.ExpressML.destroy({
+                where: {
+                    id: {
+                        [Op.eq]: req.params.id
+                    }
+                }
+            });
+            if(!del) {
+                return res.json({
+                    error: "عملیات حذف با خطا مواجه شد",
+                    severity: "error"
+                })
+            }
+            res.json({
+                message: "فایل انتخاب شده حذف گردید",
+                severity: "success"
+            })
+        } catch (err) {
+            next(err);
+        }
     })
 }
