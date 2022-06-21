@@ -1,5 +1,7 @@
 "use strict";
 const { Model } = require("sequelize");
+const sizeOf = require("image-size");
+
 module.exports = (sequelize, DataTypes) => {
 	class ExpressML extends Model {
 		/**
@@ -9,11 +11,20 @@ module.exports = (sequelize, DataTypes) => {
 		 */
 		static associate(models) {
 			// define association here
+			ExpressML.afterValidate("get-image-size", (ins, options) => {
+				if(String(ins.mimetype).includes("image/")) {
+					const dimensions = sizeOf(ins.path);
+					ins.width = dimensions.width;
+					ins.height = dimensions.height;
+
+					return ins;
+				}
+			})
 		}
 	}
 	ExpressML.init(
 		{
-			filename: {
+			name: {
 				type: DataTypes.STRING,
 				allowNull: false,
 			},
@@ -32,6 +43,14 @@ module.exports = (sequelize, DataTypes) => {
 			size: {
 				type: DataTypes.INTEGER,
 				allowNull: false,
+			},
+			width: {
+				type: DataTypes.INTEGER,
+				allowNull: true,
+			},
+			height: {
+				type: DataTypes.INTEGER,
+				allowNull: true,
 			},
 		},
 		{

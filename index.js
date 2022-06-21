@@ -1,8 +1,8 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const {Op} = require("sequelize");
 const bodyParser = require("body-parser");
+const serveStatic = require("serve-static");
 
 const pathToModel = path.join(__dirname, "model", "eMediaLibrary.js");
 
@@ -30,12 +30,24 @@ module.exports = async (app, dbModelsPath, middleware) => {
         });
     }
 
-    if(!fs.existsSync(modelPath)) {
+    async function copyAndSyncModel() {
         fs.copyFileSync(pathToModel, modelPath);
         await models.sequelize.sync({
             alter: false,
             force: false
         })
+    }
+
+    function compareModels() {
+        const latestModel = fs.readFileSync(pathToModel, {
+            encoding: 'utf8'
+        });
+        const projectModel = fs.readFileSync(modelPath, { encoding: 'utf8' });
+        return latestModel !== projectModel;
+    }
+
+    if(!fs.existsSync(modelPath) || compareModels()) {
+        copyAndSyncModel();
     }
 
     if(middleware) {
@@ -44,6 +56,8 @@ module.exports = async (app, dbModelsPath, middleware) => {
 
     app.use(PATH_NAME, bodyParser.json());
     app.use(PATH_NAME, bodyParser.urlencoded({ extended: false}));
+
+    app.use("/uploads/eml", serveStatic(uploadPath));
 
     app.get(PATH_NAME, async (req, res, next) => {
         const limit = +req.query.limit || FILES_PER_PAGE;
