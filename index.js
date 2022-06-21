@@ -102,7 +102,7 @@ module.exports = async (app, dbModelsPath, middleware) => {
 
     app.delete(PATH_NAME + "/:id", async (req,res, next) => {
         try {
-            const file = await models.findByPk(req.params.id);
+            const file = await models.ExpressML.findByPk(req.params.id);
             fs.unlinkSync(path.join(uploadPath, file.filename));
             await file.destroy();
             res.json({
